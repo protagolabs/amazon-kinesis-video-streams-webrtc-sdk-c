@@ -152,9 +152,7 @@ PVOID sendGstreamerAudioVideo(PVOID args)
                     &error);
             } else {
                 pipeline = gst_parse_launch(
-                    "autovideosrc ! queue ! videoconvert ! video/x-raw,width=1280,height=720,framerate=[30/1,10000000/333333] ! "
-                    "x264enc bframes=0 speed-preset=veryfast bitrate=512 byte-stream=TRUE tune=zerolatency ! "
-                    "video/x-h264,stream-format=byte-stream,alignment=au,profile=baseline ! appsink sync=TRUE emit-signals=TRUE name=appsink-video",
+                    "filesrc location=/home/yi.zhou/test_flask/test.mp4 ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=byte-stream,alignment=au ! appsink sync=TRUE emit-signals=TRUE name=appsink-video",
                     &error);
             }
             break;
@@ -170,10 +168,7 @@ PVOID sendGstreamerAudioVideo(PVOID args)
                                             &error);
             } else {
                 pipeline =
-                    gst_parse_launch("autovideosrc ! queue ! videoconvert ! video/x-raw,width=1280,height=720,framerate=[30/1,10000000/333333] ! "
-                                     "x264enc bframes=0 speed-preset=veryfast bitrate=512 byte-stream=TRUE tune=zerolatency ! "
-                                     "video/x-h264,stream-format=byte-stream,alignment=au,profile=baseline ! appsink sync=TRUE emit-signals=TRUE "
-                                     "name=appsink-video autoaudiosrc ! "
+                    gst_parse_launch("filesrc location=/home/yi.zhou/test_flask/test.mp4 ! qtdemux name=demux ! queue ! h264parse !  video/x-h264,stream-format=byte-stream,alignment=au ! appsink sync=TRUE emit-signals=TRUE name=appsink-video filesrc location=/home/yi.zhou/test_flask/test.mp4 ! "
                                      "queue leaky=2 max-size-buffers=400 ! audioconvert ! audioresample ! opusenc ! "
                                      "audio/x-opus,rate=48000,channels=2 ! appsink sync=TRUE emit-signals=TRUE name=appsink-audio",
                                      &error);
@@ -256,81 +251,81 @@ VOID onSampleStreamingSessionShutdown(UINT64 customData, PSampleStreamingSession
 
 PVOID receiveGstreamerAudioVideo(PVOID args)
 {
-    STATUS retStatus = STATUS_SUCCESS;
-    GstElement *pipeline = NULL, *appsrcAudio = NULL;
-    GstBus* bus;
-    GstMessage* msg;
-    GError* error = NULL;
-    PSampleStreamingSession pSampleStreamingSession = (PSampleStreamingSession) args;
-    gchar *videoDescription = "", *audioDescription = "", *audioVideoDescription;
+//     STATUS retStatus = STATUS_SUCCESS;
+//     GstElement *pipeline = NULL, *appsrcAudio = NULL;
+//     GstBus* bus;
+//     GstMessage* msg;
+//     GError* error = NULL;
+//     PSampleStreamingSession pSampleStreamingSession = (PSampleStreamingSession) args;
+//     gchar *videoDescription = "", *audioDescription = "", *audioVideoDescription;
 
-    if (pSampleStreamingSession == NULL) {
-        printf("[KVS GStreamer Master] receiveGstreamerAudioVideo(): operation returned status code: 0x%08x \n", STATUS_NULL_ARG);
-        goto CleanUp;
-    }
+//     if (pSampleStreamingSession == NULL) {
+//         printf("[KVS GStreamer Master] receiveGstreamerAudioVideo(): operation returned status code: 0x%08x \n", STATUS_NULL_ARG);
+//         goto CleanUp;
+//     }
 
-    // TODO: Wire video up with gstreamer pipeline
+//     // TODO: Wire video up with gstreamer pipeline
 
-    switch (pSampleStreamingSession->pAudioRtcRtpTransceiver->receiver.track.codec) {
-        case RTC_CODEC_OPUS:
-            audioDescription = "appsrc name=appsrc-audio ! opusparse ! decodebin ! autoaudiosink";
-            break;
+//     switch (pSampleStreamingSession->pAudioRtcRtpTransceiver->receiver.track.codec) {
+//         case RTC_CODEC_OPUS:
+//             audioDescription = "appsrc name=appsrc-audio ! opusparse ! decodebin ! autoaudiosink";
+//             break;
 
-        case RTC_CODEC_MULAW:
-        case RTC_CODEC_ALAW:
-            audioDescription = "appsrc name=appsrc-audio ! rawaudioparse ! decodebin ! autoaudiosink";
-            break;
-        default:
-            break;
-    }
+//         case RTC_CODEC_MULAW:
+//         case RTC_CODEC_ALAW:
+//             audioDescription = "appsrc name=appsrc-audio ! rawaudioparse ! decodebin ! autoaudiosink";
+//             break;
+//         default:
+//             break;
+//     }
 
-    audioVideoDescription = g_strjoin(" ", audioDescription, videoDescription, NULL);
+//     audioVideoDescription = g_strjoin(" ", audioDescription, videoDescription, NULL);
 
-    pipeline = gst_parse_launch(audioVideoDescription, &error);
+//     pipeline = gst_parse_launch(audioVideoDescription, &error);
 
-    appsrcAudio = gst_bin_get_by_name(GST_BIN(pipeline), "appsrc-audio");
-    if (appsrcAudio == NULL) {
-        printf("[KVS GStreamer Master] gst_bin_get_by_name(): cant find appsrc, operation returned status code: 0x%08x \n", STATUS_INTERNAL_ERROR);
-        goto CleanUp;
-    }
+//     appsrcAudio = gst_bin_get_by_name(GST_BIN(pipeline), "appsrc-audio");
+//     if (appsrcAudio == NULL) {
+//         printf("[KVS GStreamer Master] gst_bin_get_by_name(): cant find appsrc, operation returned status code: 0x%08x \n", STATUS_INTERNAL_ERROR);
+//         goto CleanUp;
+//     }
 
-    transceiverOnFrame(pSampleStreamingSession->pAudioRtcRtpTransceiver, (UINT64) appsrcAudio, onGstAudioFrameReady);
+//     transceiverOnFrame(pSampleStreamingSession->pAudioRtcRtpTransceiver, (UINT64) appsrcAudio, onGstAudioFrameReady);
 
-    retStatus = streamingSessionOnShutdown(pSampleStreamingSession, (UINT64) appsrcAudio, onSampleStreamingSessionShutdown);
-    if (retStatus != STATUS_SUCCESS) {
-        printf("[KVS GStreamer Master] streamingSessionOnShutdown(): operation returned status code: 0x%08x \n", STATUS_INTERNAL_ERROR);
-        goto CleanUp;
-    }
+//     retStatus = streamingSessionOnShutdown(pSampleStreamingSession, (UINT64) appsrcAudio, onSampleStreamingSessionShutdown);
+//     if (retStatus != STATUS_SUCCESS) {
+//         printf("[KVS GStreamer Master] streamingSessionOnShutdown(): operation returned status code: 0x%08x \n", STATUS_INTERNAL_ERROR);
+//         goto CleanUp;
+//     }
 
-    g_free(audioVideoDescription);
+//     g_free(audioVideoDescription);
 
-    if (pipeline == NULL) {
-        printf("[KVS GStreamer Master] receiveGstreamerAudioVideo(): Failed to launch gstreamer, operation returned status code: 0x%08x \n",
-               STATUS_INTERNAL_ERROR);
-        goto CleanUp;
-    }
+//     if (pipeline == NULL) {
+//         printf("[KVS GStreamer Master] receiveGstreamerAudioVideo(): Failed to launch gstreamer, operation returned status code: 0x%08x \n",
+//                STATUS_INTERNAL_ERROR);
+//         goto CleanUp;
+//     }
 
-    gst_element_set_state(pipeline, GST_STATE_PLAYING);
+//     gst_element_set_state(pipeline, GST_STATE_PLAYING);
 
-    /* block until error or EOS */
-    bus = gst_element_get_bus(pipeline);
-    msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_ERROR | GST_MESSAGE_EOS);
+//     /* block until error or EOS */
+//     bus = gst_element_get_bus(pipeline);
+//     msg = gst_bus_timed_pop_filtered(bus, GST_CLOCK_TIME_NONE, GST_MESSAGE_ERROR | GST_MESSAGE_EOS);
 
-    /* Free resources */
-    if (msg != NULL) {
-        gst_message_unref(msg);
-    }
-    gst_object_unref(bus);
-    gst_element_set_state(pipeline, GST_STATE_NULL);
-    gst_object_unref(pipeline);
+//     /* Free resources */
+//     if (msg != NULL) {
+//         gst_message_unref(msg);
+//     }
+//     gst_object_unref(bus);
+//     gst_element_set_state(pipeline, GST_STATE_NULL);
+//     gst_object_unref(pipeline);
 
-CleanUp:
-    if (error != NULL) {
-        printf("%s", error->message);
-        g_clear_error(&error);
-    }
+// CleanUp:
+//     if (error != NULL) {
+//         printf("%s", error->message);
+//         g_clear_error(&error);
+//     }
 
-    return (PVOID) (ULONG_PTR) retStatus;
+//     return (PVOID) (ULONG_PTR) retStatus;
 }
 
 INT32 main(INT32 argc, CHAR* argv[])
@@ -370,7 +365,7 @@ INT32 main(INT32 argc, CHAR* argv[])
     }
 
     pSampleConfiguration->videoSource = sendGstreamerAudioVideo;
-    pSampleConfiguration->mediaType = SAMPLE_STREAMING_VIDEO_ONLY;
+    pSampleConfiguration->mediaType = SAMPLE_STREAMING_AUDIO_VIDEO;
     pSampleConfiguration->receiveAudioVideoSource = receiveGstreamerAudioVideo;
     pSampleConfiguration->onDataChannel = onDataChannel;
     pSampleConfiguration->customData = (UINT64) pSampleConfiguration;

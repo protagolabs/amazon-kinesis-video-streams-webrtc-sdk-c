@@ -1,4 +1,6 @@
 #include "Samples.h"
+#include <unistd.h>
+#include <stdio.h>
 
 extern PSampleConfiguration gSampleConfiguration;
 
@@ -192,6 +194,7 @@ STATUS readFrameFromDisk(PBYTE pFrame, PUINT32 pSize, PCHAR frameFilePath)
     // Get the size and read into frame
     retStatus = readFile(frameFilePath, TRUE, pFrame, &size);
     if (retStatus != STATUS_SUCCESS) {
+        printf("%s", frameFilePath);
         printf("[KVS Master] readFile(): operation returned status code: 0x%08x \n", retStatus);
         goto CleanUp;
     }
@@ -228,12 +231,16 @@ PVOID sendVideoPackets(PVOID args)
     lastFrameTime = startTime;
 
     while (!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag)) {
+        if (access("cmd_start", F_OK) != 0){
+            continue;
+        }
+
         fileIndex = fileIndex % NUMBER_OF_H264_FRAME_FILES + 1;
         snprintf(filePath, MAX_PATH_LEN, "./h264SampleFrames/frame-%04d.h264", fileIndex);
 
         retStatus = readFrameFromDisk(NULL, &frameSize, filePath);
         if (retStatus != STATUS_SUCCESS) {
-            printf("[KVS Master] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
+            printf("[KVS Master] [sendVideoPackets] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
             goto CleanUp;
         }
 
@@ -265,6 +272,7 @@ PVOID sendVideoPackets(PVOID args)
         frame.presentationTs += SAMPLE_VIDEO_FRAME_DURATION;
 
         MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
+        // printf("[KVS Master] before video write fame loop");
         for (i = 0; i < pSampleConfiguration->streamingSessionCount; ++i) {
             status = writeFrame(pSampleConfiguration->sampleStreamingSessionList[i]->pVideoRtcRtpTransceiver, &frame);
             encoderStats.encodeTimeMsec = 4; // update encode time to an arbitrary number to demonstrate stats update
@@ -277,6 +285,7 @@ PVOID sendVideoPackets(PVOID args)
                 }
             }
         }
+        // printf("[KVS Master] after video write fame loop");
         MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
 
         // Adjust sleep in the case the sleep itself and writeFrame take longer than expected. Since sleep makes sure that the thread
@@ -313,12 +322,14 @@ PVOID sendAudioPackets(PVOID args)
     frame.presentationTs = 0;
 
     while (!ATOMIC_LOAD_BOOL(&pSampleConfiguration->appTerminateFlag)) {
-        fileIndex = fileIndex % NUMBER_OF_OPUS_FRAME_FILES + 1;
+        if (access("cmd_start", F_OK) != 0){
+            continue;
+        }
         snprintf(filePath, MAX_PATH_LEN, "./opusSampleFrames/sample-%03d.opus", fileIndex);
 
         retStatus = readFrameFromDisk(NULL, &frameSize, filePath);
         if (retStatus != STATUS_SUCCESS) {
-            printf("[KVS Master] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
+            printf("[KVS Master] [sendAudioPackets] readFrameFromDisk(): operation returned status code: 0x%08x \n", retStatus);
             goto CleanUp;
         }
 
@@ -344,6 +355,7 @@ PVOID sendAudioPackets(PVOID args)
         frame.presentationTs += SAMPLE_AUDIO_FRAME_DURATION;
 
         MUTEX_LOCK(pSampleConfiguration->streamingSessionListReadLock);
+        // printf("[KVS Master] before audio write fame loop");
         for (i = 0; i < pSampleConfiguration->streamingSessionCount; ++i) {
             status = writeFrame(pSampleConfiguration->sampleStreamingSessionList[i]->pAudioRtcRtpTransceiver, &frame);
             if (status != STATUS_SRTP_NOT_READY_YET) {
@@ -354,8 +366,10 @@ PVOID sendAudioPackets(PVOID args)
                 }
             }
         }
+        // printf("[KVS Master] after audio write fame loop");
         MUTEX_UNLOCK(pSampleConfiguration->streamingSessionListReadLock);
         THREAD_SLEEP(SAMPLE_AUDIO_FRAME_DURATION);
+        fileIndex = (fileIndex + 1) % NUMBER_OF_OPUS_FRAME_FILES;
     }
 
 CleanUp:
